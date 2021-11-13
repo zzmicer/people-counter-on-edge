@@ -35,33 +35,74 @@ class Network:
     """
 
     def __init__(self):
-        ### TODO: Initialize any class variables desired ###
+        self.plugin = None
+        self.network = None
+        self.input_blob = None
+        self.output_blob = None
+        self.exec_network = None
+        self.infer_request = None
 
-    def load_model(self):
-        ### TODO: Load the model ###
-        ### TODO: Check for supported layers ###
-        ### TODO: Add any necessary extensions ###
-        ### TODO: Return the loaded inference plugin ###
-        ### Note: You may need to update the function parameters. ###
+    def load_model(self, model, device="CPU", cpu_extension=None):
+        """
+        Load the model given IR files.
+        Defaults to CPU as device for use in the workspace.
+        Synchronous requests made within.
+        """
+
+        model_xml = model
+        model_bin = os.path.splitext(model_xml)[0] + ".bin"
+
+        self.plugin = IECore()
+        self.network = IENetwork(model=model_xml, weights=model_bin)
+
+        # TODO: Add not only CPU extensions
+        if cpu_extension and "CPU" in device:
+            self.plugin.add_extension(cpu_extension, device)
+
+        # Check for supported layers
+        supported_layers = self.plugin.query_network(
+            network=self.network, device_name=device)
+
+        # Check for any unsupported layers, and let the user
+        # know if anything is missing. Exit the program, if so.
+        net_layers = self.network.layers.keys()
+        for layer in net_layers:
+            if layer in supported_layers:
+                continue
+            else:
+                print("Layer {} is unsupported".format(str(layer)))
+                print("Check whether extensions are available to add to IECore.")
+                exit(1)
+
+        self.exec_network = self.plugin.load_network(self.network, device)
+        self.input_blob = next(iter(self.network.inputs))
+        self.output_blob = next(iter(self.network.outputs))
+        # TODO: Check what to return
         return
 
     def get_input_shape(self):
-        ### TODO: Return the shape of the input layer ###
-        return
+        """
+        Gets the input shape of the network
+        """
+        return self.network.inputs[self.input_blob].shape
 
-    def exec_net(self):
-        ### TODO: Start an asynchronous request ###
-        ### TODO: Return any necessary information ###
-        ### Note: You may need to update the function parameters. ###
+    def exec_net(self, image):
+        """
+        Makes an asynchronous inference request, given an input image.
+        """
+        self.infer_request = self.exec_network.start_async(
+            request_id=0, inputs={self.input_blob: image})
         return
 
     def wait(self):
-        ### TODO: Wait for the request to be complete. ###
-        ### TODO: Return any necessary information ###
-        ### Note: You may need to update the function parameters. ###
-        return
+        """
+        Checks the status of the inference request.
+        """
+        status = self.infer_request.wait()
+        return status
 
     def get_output(self):
-        ### TODO: Extract and return the output results
-        ### Note: You may need to update the function parameters. ###
-        return
+        """
+        Returns a list of the results for the output layer of the network
+        """
+        return self.infer_request.outputs[self.output_blob]
