@@ -55,7 +55,6 @@ class Network:
         self.plugin = IECore()
         self.network = IENetwork(model=model_xml, weights=model_bin)
 
-        # TODO: Add not only CPU extensions
         if cpu_extension and "CPU" in device:
             self.plugin.add_extension(cpu_extension, device)
 
@@ -77,8 +76,8 @@ class Network:
         self.exec_network = self.plugin.load_network(self.network, device)
         self.input_blob = next(iter(self.network.inputs))
         self.output_blob = next(iter(self.network.outputs))
-        # TODO: Check what to return
-        return
+
+        return self.exec_net
 
     def get_input_shape(self):
         """
@@ -92,6 +91,7 @@ class Network:
         """
         self.infer_request = self.exec_network.start_async(
             request_id=0, inputs={self.input_blob: image})
+        #TODO: check output
         return
 
     def wait(self):
