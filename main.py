@@ -26,12 +26,15 @@ import time
 import socket
 import json
 import cv2
+import numpy as np
 
 import logging as log
 import paho.mqtt.client as mqtt
 
 from argparse import ArgumentParser
 from inference import Network
+
+from src.utils import preprocess
 
 # MQTT server environment variables
 HOSTNAME = socket.gethostname()
@@ -93,33 +96,64 @@ def infer_on_stream(args, client):
     # Set Probability threshold for detections
     prob_threshold = args.prob_threshold
 
-    ### TODO: Load the model through `infer_network` ###
-
+    ### Load the model through `infer_network` ###
+    infer_network.load_model(args.model, args.device)
+    net_input_shape = infer_network.get_input_shape()
+    n, c, h, w = net_input_shape
+    
     ### TODO: Handle the input stream ###
-
+    cap = cv2.VideoCapture(args.input)
+    cap.open(args.input)
+    
     ### TODO: Loop until stream is over ###
+    while cap.isOpened():
 
-        ### TODO: Read from the video capture ###
-
+        ### Read from the video capture ###
+        flag, frame = cap.read()
+        if not flag:
+            break
+        key_pressed = cv2.waitKey(60)
+        cv2.imshow("Input", frame)
         ### TODO: Pre-process the image as needed ###
-
+        resized_img = preprocess(frame,h,w)
         ### TODO: Start asynchronous inference for specified request ###
-
+        infer_network.exec_net(resized_img)
         ### TODO: Wait for the result ###
-
+        if infer_network.wait() == 0:
             ### TODO: Get the results of the inference request ###
-
+            result = infer_network.get_output()
             ### TODO: Extract any desired stats from the results ###
+            
+            boxes = []
+            confidences = []
+            classIDs = []
+            for output in result:
+            # loop over each of the detections
+                for detection in output:
+                    # extract the class ID and confidence (i.e., probability) of
+                    # the current object detection
+                    scores = detection[5:]
+                    classID = np.argmax(scores)
+                    confidence = scores[classID]
+                    print("classID --- {0}, confidence --- {0}".format(classID,confidence))
+                
+
 
             ### TODO: Calculate and send relevant information on ###
             ### current_count, total_count and duration to the MQTT server ###
             ### Topic "person": keys of "count" and "total" ###
             ### Topic "person/duration": key of "duration" ###
-
+            pass
         ### TODO: Send the frame to the FFMPEG server ###
 
         ### TODO: Write an output image if `single_image_mode` ###
-
+        
+        if key_pressed == 27:
+            break
+        # Release the capture and destroy any OpenCV windows
+    
+    cap.release()
+    cv2.destroyAllWindows()
 
 def main():
     """
