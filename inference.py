@@ -26,6 +26,7 @@ import os
 import sys
 import logging as log
 from openvino.inference_engine import IENetwork, IECore
+import ngraph as ng
 
 
 class Network:
@@ -53,7 +54,7 @@ class Network:
         model_bin = os.path.splitext(model_xml)[0] + ".bin"
 
         self.plugin = IECore()
-        self.network = IENetwork(model=model_xml, weights=model_bin)
+        self.network = self.plugin.read_network(model=model_xml, weights=model_bin)
 
         if cpu_extension and "CPU" in device:
             self.plugin.add_extension(cpu_extension, device)
@@ -64,9 +65,13 @@ class Network:
 
         # Check for any unsupported layers, and let the user
         # know if anything is missing. Exit the program, if so.
-        net_layers = self.network.layers.keys()
+        net_layers = []
+        ngraph_func = ng.function_from_cnn(self.network)
+        for op in ngraph_func.get_ordered_ops():
+            net_layers.append(op.get_friendly_name())
+
         for layer in net_layers:
-            if layer in supported_layers:
+            if layer in supported_layers.keys():
                 continue
             else:
                 print("Layer {} is unsupported".format(str(layer)))
