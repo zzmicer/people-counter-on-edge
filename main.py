@@ -34,7 +34,7 @@ import paho.mqtt.client as mqtt
 from argparse import ArgumentParser
 from inference import Network
 
-from src.utils import preprocess
+from src.utils import preprocess,draw_box
 
 # MQTT server environment variables
 HOSTNAME = socket.gethostname()
@@ -100,7 +100,7 @@ def infer_on_stream(args, client):
     infer_network.load_model(args.model, args.device)
     net_input_shape = infer_network.get_input_shape()
     n, c, h, w = net_input_shape
-    
+
     ### TODO: Handle the input stream ###
     cap = cv2.VideoCapture(args.input)
     cap.open(args.input)
@@ -124,26 +124,20 @@ def infer_on_stream(args, client):
             result = infer_network.get_output()
             ### TODO: Extract any desired stats from the results ###
             
-            boxes = []
-            confidences = []
-            classIDs = []
-            for output in result:
-            # loop over each of the detections
-                for detection in output:
-                    # extract the class ID and confidence (i.e., probability) of
-                    # the current object detection
-                    scores = detection[5:]
-                    classID = np.argmax(scores)
-                    confidence = scores[classID]
-                    print("classID --- {0}, confidence --- {0}".format(classID,confidence))
-                
-
-
+            result = result.squeeze()
+            # Handle only person info
+            result = result[result[:,1]==1]
+            result = result[result[:,2]>=args.prob_threshold]
+            
+            
+            for person in result:
+                frame = draw_box(frame, person)
+            cv2.imshow("Output", frame)
             ### TODO: Calculate and send relevant information on ###
             ### current_count, total_count and duration to the MQTT server ###
             ### Topic "person": keys of "count" and "total" ###
             ### Topic "person/duration": key of "duration" ###
-            pass
+            
         ### TODO: Send the frame to the FFMPEG server ###
 
         ### TODO: Write an output image if `single_image_mode` ###

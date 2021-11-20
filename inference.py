@@ -82,13 +82,20 @@ class Network:
         self.input_blob = next(iter(self.network.inputs))
         self.output_blob = next(iter(self.network.outputs))
 
-        return self.exec_net
+        return 
 
     def get_input_shape(self):
         """
         Gets the input shape of the network
         """
         return self.network.inputs[self.input_blob].shape
+    
+    def get_output_shape(self):
+        """
+        Gets the output shape of the network
+        """
+        return self.network.inputs[self.output_blob].shape
+
 
     def exec_net(self, image):
         """
@@ -96,7 +103,6 @@ class Network:
         """
         self.infer_request = self.exec_network.start_async(
             request_id=0, inputs={self.input_blob: image})
-        #TODO: check output
         return
 
     def wait(self):
