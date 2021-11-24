@@ -26,7 +26,6 @@ def draw_box(frame, info):
     x2 = int(W * x2)
     y1 = int(H * y1)
     y2 = int(H * y2)
-
     
     frame = cv2.rectangle(frame, (x1,y1), (x2,y2), (255,0,0), 2)
 

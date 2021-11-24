@@ -43,6 +43,9 @@ MQTT_HOST = IPADDRESS
 MQTT_PORT = 3001
 MQTT_KEEPALIVE_INTERVAL = 60
 
+# Check for a person detection every 10 frames
+PERSON_FRAMERATE = 10
+
 
 def build_argparser():
     """
@@ -54,7 +57,7 @@ def build_argparser():
     parser.add_argument("-m", "--model", required=True, type=str,
                         help="Path to an xml file with a trained model.")
     parser.add_argument("-i", "--input", required=True, type=str,
-                        help="Path to image or video file")
+                        help="Path to video file")
     
     # Note - CPU extensions are moved to plugin since OpenVINO release 2020.1. 
     # The extensions are loaded automatically while     
@@ -101,47 +104,73 @@ def infer_on_stream(args, client):
     net_input_shape = infer_network.get_input_shape()
     n, c, h, w = net_input_shape
 
-    ### TODO: Handle the input stream ###
+    if(args.input == '0'):
+        args.input = 0
     cap = cv2.VideoCapture(args.input)
     cap.open(args.input)
-    
-    ### TODO: Loop until stream is over ###
-    while cap.isOpened():
 
+    #Init info
+    count_history = [0]*PERSON_FRAMERATE
+    current_count = 0
+    total_people = 0
+    counting = False
+    delta = 0
+    duration = 0
+
+    while cap.isOpened():
         ### Read from the video capture ###
         flag, frame = cap.read()
         if not flag:
             break
         key_pressed = cv2.waitKey(60)
         cv2.imshow("Input", frame)
-        ### TODO: Pre-process the image as needed ###
+        
         resized_img = preprocess(frame,h,w)
-        ### TODO: Start asynchronous inference for specified request ###
+        
         infer_network.exec_net(resized_img)
-        ### TODO: Wait for the result ###
+
         if infer_network.wait() == 0:
-            ### TODO: Get the results of the inference request ###
             result = infer_network.get_output()
-            ### TODO: Extract any desired stats from the results ###
             
             result = result.squeeze()
             # Handle only person info
             result = result[result[:,1]==1]
             result = result[result[:,2]>=args.prob_threshold]
             
-            
+            # Number of persons in current frame
+            person_in_frame = result.shape[0]
+
+            # Update history
+            count_history.pop(0)
+            count_history.append(person_in_frame)
+
+            previous_count = current_count
+            current_count = max(set(count_history), key = count_history.count)
+            delta = current_count - previous_count
+            if delta>0:
+                # update number of people seen
+                total_people+=delta
+                # start counting time
+                nfs=0   # number of frames 
+                counting = True
+            elif delta<0:
+                # stop time and calculate duration
+                duration = nfs/PERSON_FRAMERATE 
+                counting = False
+            else:
+                if counting:
+                    nfs+=1
+
+            print(total_people)
+
+            # Draw bbox around detected person
             for person in result:
                 frame = draw_box(frame, person)
             cv2.imshow("Output", frame)
-            ### TODO: Calculate and send relevant information on ###
-            ### current_count, total_count and duration to the MQTT server ###
-            ### Topic "person": keys of "count" and "total" ###
-            ### Topic "person/duration": key of "duration" ###
+
             
         ### TODO: Send the frame to the FFMPEG server ###
 
-        ### TODO: Write an output image if `single_image_mode` ###
-        
         if key_pressed == 27:
             break
         # Release the capture and destroy any OpenCV windows
