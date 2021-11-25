@@ -81,7 +81,8 @@ def build_argparser():
 def connect_mqtt():
     ### TODO: Connect to the MQTT client ###
     client = None
-
+    client = mqtt.Client()
+    client.connect(MQTT_HOST, MQTT_PORT, MQTT_KEEPALIVE_INTERVAL)
     return client
 
 
@@ -115,7 +116,6 @@ def infer_on_stream(args, client):
     total_people = 0
     counting = False
     delta = 0
-    duration = 0
 
     while cap.isOpened():
         ### Read from the video capture ###
@@ -150,16 +150,6 @@ def infer_on_stream(args, client):
             if delta>0:
                 # update number of people seen
                 total_people+=delta
-                # start counting time
-                nfs=0   # number of frames 
-                counting = True
-            elif delta<0:
-                # stop time and calculate duration
-                duration = nfs/PERSON_FRAMERATE 
-                counting = False
-            else:
-                if counting:
-                    nfs+=1
 
             print(total_people)
 
@@ -169,12 +159,25 @@ def infer_on_stream(args, client):
             cv2.imshow("Output", frame)
 
             
-        ### TODO: Send the frame to the FFMPEG server ###
+        ### Publish statistics
+        if client is not None:
+            client.publish("person", json.dumps({"count": current_count, 'total': tot_people}))
+
+        ### Send the frame to the FFMPEG server ###
+        try:
+            sys.stdout.buffer.write(frame)  
+            sys.stdout.flush()
+        except BrokenPipeError:
+            print ('BrokenPipeError caught', file = sys.stderr)
+
 
         if key_pressed == 27:
             break
         # Release the capture and destroy any OpenCV windows
     
+    sys.stderr.close()
+    client.disconnect()
+
     cap.release()
     cv2.destroyAllWindows()
 
