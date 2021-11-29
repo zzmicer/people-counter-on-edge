@@ -2,6 +2,10 @@
 
 ![people-counter-python](./images/people-counter-image.png)
 
+## Deployed on Intel® Neural Compute Stick 2 & Raspberry Pi 3
+
+![](./images/photo_2021-06-06_02-54-12.jpg)
+
 ## What it Does
 
 The people counter application will demonstrate how to create a smart video IoT solution using Intel® hardware and software tools. The app will detect people in a designated area, providing the number of people in the frame, average duration of people in frame, and total count.
