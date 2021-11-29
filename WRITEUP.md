@@ -50,6 +50,6 @@ Despite the fact of poor performance, [**ssd\_mobilenet\_v2**](https://docs.open
 
 I used Raspberry Pi with Intel® Neural Compute Stick 2.
 
-![[photo_2021-06-06_02-54-12.jpg]]
+![ncs](./images/photo_2021-06-06_02-54-12.jpg)
 
-![[photo_2021-06-06_02-54-13.jpg]]
+![ncs](./images/photo_2021-06-06_02-54-13.jpg)
